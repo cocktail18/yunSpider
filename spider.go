@@ -1,23 +1,23 @@
 package main
 
 import (
-	_ "github.com/go-sql-driver/mysql"
-	"fmt"
-	"net/http"
-	"io/ioutil"
-	"github.com/siddontang/go/log"
-	"regexp"
-	"encoding/json"
-	"time"
-	"database/sql"
-	"github.com/garyburd/redigo/redis"
-	"github.com/Unknwon/goconfig"
-	"strconv"
-	"bytes"
-	"os"
 	"bufio"
+	"bytes"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"github.com/Unknwon/goconfig"
+	"github.com/garyburd/redigo/redis"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/siddontang/go/log"
 	"io"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"regexp"
+	"strconv"
 	"strings"
+	"time"
 )
 
 var db *sql.DB
@@ -247,8 +247,9 @@ func main() {
 			} else {
 				log.Info("从单个uk开始爬取")
 				s_uk, _ := strconv.ParseInt(start_uk, 10, 64)
-				GetFollow(s_uk, 0, true)
-
+				for uk := s_uk; ; uk++ {
+					GetFollow(uk, 0, true)
+				}
 			}
 
 		} else {
@@ -462,6 +463,13 @@ type yundata struct {
 	Feedata feedata
 	Uinfo   uinfo
 }
+
+type yundata2 struct {
+	Feedata string
+	Uinfo   uinfo
+}
+
+
 type uinfo struct {
 	Uname          interface{}
 	Avatar_url     string
@@ -525,7 +533,7 @@ var album_url = "https://pan.baidu.com/wap/album/info?uk=%d&album_id=%s"
 func IndexResource(uk int64) {
 	//https://pan.baidu.com/wap/share/home?&uk=1209465220&adapt=pc&fr=ftw
 	url := "https://pan.baidu.com/wap/share/home?third=0&uk=%d&start=%d&fr=ftw"
-	for true {
+	for {
 		real_url := fmt.Sprintf(url, uk, 0)
 		time.Sleep(time.Millisecond * 1000)
 		result, _ := HttpGet(real_url, headers)
@@ -665,10 +673,17 @@ func GetData(res string) *yundata {
 	if len(result) == 0 {
 		return nil
 	}
+	var yd2 yundata2
 	var yd yundata
-	error := json.Unmarshal([]byte(result), &yd)
-	if error != nil {
-		log.Error("json反序列化错误", error)
+	err := json.Unmarshal([]byte(result), &yd2)
+	if err == nil {
+		yd.Uinfo = yd2.Uinfo
+		return &yd
+	}
+	log.Infof("get result %s", []byte(result))
+	err = json.Unmarshal([]byte(result), &yd)
+	if err != nil {
+		log.Error("json反序列化错误", err)
 		return nil
 	}
 	return &yd
